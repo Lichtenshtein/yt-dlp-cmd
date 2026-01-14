@@ -15,7 +15,7 @@ SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 :: and text files may be used. text files are found 
 :: and processed first, then all URLs.
 ::
-:: v3.0 2026/01/02 Lichtenshtein
+:: v3.1 2026/01/14 Lichtenshtein
 
 :: to convert comments to readable HTML python needs to be installed
 :: then you may also need to install "pip install json2html"
@@ -131,6 +131,7 @@ REM SET             RETRIES=infinite
 SET             RETRIES=99
 SET    FRAGMENT_RETRIES=55
 SET         BUFFER_SIZE=5M
+:: tip: paste multiple URL at a time to download in parallel (not tested)
 SET             THREADS=3
 SET        THUMB_FORMAT=jpg
 SET      THUMB_COMPRESS=3
@@ -155,7 +156,7 @@ SET reasonable-timeouts=
 REM SET               DEBUG= -v -s --keep-video
 SET       RETRIES_SLEEP=1.0
 :: note: minimizing --extractor-arg "youtube:playback_wait=0.3" value breaks CustomChapters plugin, won't be able to extract chapters
-SET               SLEEP=--min-sleep-interval 0.7 --sleep-subtitles 3 --sleep-requests 0.75 --sleep-interval 3.5 --max-sleep-interval 7 --retry-sleep %RETRIES_SLEEP%
+SET               SLEEP=--socket-timeout 30 --min-sleep-interval 0.7 --sleep-subtitles 3 --sleep-requests 0.75 --sleep-interval 3.5 --max-sleep-interval 7 --retry-sleep %RETRIES_SLEEP%
 :: plugins settings
 SET       CHAPTERS_PATH=%YTDLP_FOLDER%\chapters.txt
 SET  use_pl_splitandtag=
@@ -165,7 +166,7 @@ SET    PYTHONIOENCODING=utf-8
 SET          PYTHONUTF8=1
 :: set ffmpeg common options
 SET FFMPEG_THUMB_FORMAT=mjpeg
-SET       AUDIO_BITRATE=148
+SET       AUDIO_BITRATE=130
 SET AUDIO_SAMPLING_RATE=44100
 SET         VOLUME_GAIN=2
 SET              CUTOFF=20000
@@ -352,14 +353,14 @@ ECHO %Blue-s%│%ColorOff%  %Yellow-s%u%ColorOff%  Update	%Yellow-s%x%ColorOff% 
 ECHO %Blue-s%│%ColorOff%  %Red-s%q%ColorOff%  Exit!padding:~1,-10!%Blue-s%│%ColorOff%
 ECHO %Blue-s%╰%separator:~1,-1%╯%ColorOff%
 SET /p choice=%BS%   %Cyan-n%› %ColorOff% Enter your choice: 
-IF "%choice%"=="1" GOTO :select-format-audio
-IF "%choice%"=="2" GOTO :select-format-video
-IF "%choice%"=="3" GOTO :select-download-list
-IF "%choice%"=="4" GOTO :select-format-manual
-IF "%choice%"=="5" GOTO :select-preset-subs
-IF "%choice%"=="6" GOTO :select-preset-comments
-IF "%choice%"=="7" GOTO :select-preset-sections
-IF "%choice%"=="8" GOTO :select-format-stream
+IF "%choice%"=="1" IF NOT DEFINED URL (SET URL-Hook-Audio=1& GOTO :getURL-continue) ELSE (GOTO :select-format-audio)
+IF "%choice%"=="2" IF NOT DEFINED URL (SET URL-Hook-Video=1& GOTO :getURL-continue) ELSE (GOTO :select-format-video)
+IF "%choice%"=="3" IF NOT DEFINED URL (SET URL-Hook-List=1& GOTO :getURL-continue) ELSE (GOTO :select-download-list)
+IF "%choice%"=="4" IF NOT DEFINED URL (SET URL-Hook-Manual=1& GOTO :getURL-continue) ELSE (GOTO :select-format-manual)
+IF "%choice%"=="5" IF NOT DEFINED URL (SET URL-Hook-Subs=1& GOTO :getURL-continue) ELSE (GOTO :select-preset-subs)
+IF "%choice%"=="6" IF NOT DEFINED URL (SET URL-Hook-Comments=1& GOTO :getURL-continue) ELSE (GOTO :select-preset-comments)
+IF "%choice%"=="7" IF NOT DEFINED URL (SET URL-Hook-Sections=1& GOTO :getURL-continue) ELSE (GOTO :select-preset-sections)
+IF "%choice%"=="8" IF NOT DEFINED URL (SET URL-Hook-Stream=1& GOTO :getURL-continue) ELSE (GOTO :select-format-stream)
 IF "%choice%"=="e" GOTO :getURL-re-enter
 IF "%choice%"=="s" GOTO :settings
 IF "%choice%"=="u" GOTO :update
@@ -1179,7 +1180,7 @@ ECHO %Blue-s%┝%separator:~1,-1%╯%ColorOff%
 :: meant for download another link with same params
 ECHO %Blue-s%│%ColorOff%  %Cyan-s%1%ColorOff%  New URL ^(same parameters^)
 :: meant to retry failed download with same params (in case if link is invalid)
-ECHO %Blue-s%│%ColorOff%  %Cyan-s%2%ColorOff%  Retry   ^(same parameters^)
+ECHO %Blue-s%│%ColorOff%  %Cyan-s%2%ColorOff%  Retry ^(same parameters^)
 ECHO %Blue-s%│%ColorOff%  %Cyan-s%3%ColorOff%  Send URL To Splitter
 IF DEFINED extended_menu (
 ECHO %Blue-s%│%ColorOff%  %Cyan-s%4%ColorOff%  Enable Smart Splitter
@@ -1204,8 +1205,7 @@ ECHO %Blue-s%│%ColorOff% %Cyan-s%21%ColorOff%  Retry Stream         ^(re-new p
 ECHO %Blue-s%│%ColorOff% %Cyan-s%22%ColorOff%  Retry Sections       ^(re-new parameters^)
 )
 ECHO %Blue-s%┝%separator:~1,-1%┥%ColorOff%
-:: re-enter link to retry the download
-ECHO %Blue-s%│%ColorOff%  %Yellow-s%e%ColorOff%  %Blue-n-b%%White-s%Re-Enter URL%ColorOff%%ColorOff%!padding:~1,-18!%Blue-s%│%ColorOff%
+ECHO %Blue-s%│%ColorOff%  %Yellow-s%e%ColorOff%  Main Menu ^(keep URL^)!padding:~1,-26!%Blue-s%│%ColorOff%
 :: resets all variables
 ECHO %Blue-s%│%ColorOff%  %Yellow-s%r%ColorOff%  Main Menu!padding:~1,-15!%Blue-s%│%ColorOff%
 :: this seems useless here, params won't change from within this menu. upd. valid for debug mode.
@@ -1261,8 +1261,10 @@ IF "%choice%"=="21" GOTO :doYTDL-preset-stream-1
 IF "%choice%"=="22" GOTO :sections-preset-1
 IF "%choice%"=="x" SET extended_menu=1& GOTO :continue
 IF "%choice%"=="d" SET enable_debug=1& GOTO :continue
-IF "%choice%"=="r" SET Downloaded-Video=& SET Downloaded-Audio=& SET Downloaded-Manual=& SET Downloaded-Manual-Single=& SET Downloaded-Comments=& SET Downloaded-Subs=& SET AudioQuality=& SET DownloadList=& SET VideoResolution=& SET VideoFPS=& SET CustomFormatVideo=& SET StreamAudioFormat=& SET CustomFormat-m4a=& SET CustomFormat-mp3=& SET quality_libfdk=& SET CustomFormat-opus=& SET StreamVideoFormat=& SET CommentPreset=& SET SectionsAudio=& SET SectionsVideo=& SET DoSections=& SET Downloaded-Sections=& SET Downloaded-Stream=& SET OnlyNew=& SET Downloaded-Quick=& SET SubsPreset=& SET FormatTitle=& SET CustomFormat-ogg=& SET CropThumb=& SET VariousArtists=& SET quality_simple=& SET CustomFormatAudio=& SET CustomChapters=& SET ReplayGainPreset=& SET BestAudio=& SET aac-at-param-1=& SET aac-at-param-2=& SET aac-at-param-3=& SET aac-at-param-4=& SET aac-at-param-5=& SET CustomCodec=& SET ContinueHook=& SET ALBUM=& GOTO :start
-IF "%choice%"=="e" GOTO :getURL-re-enter
+IF "%choice%"=="r" SET URL=& SET Downloaded-Video=& SET Downloaded-Audio=& SET Downloaded-Manual=& SET Downloaded-Manual-Single=& SET Downloaded-Comments=& SET Downloaded-Subs=& SET AudioQuality=& SET DownloadList=& SET VideoResolution=& SET VideoFPS=& SET CustomFormatVideo=& SET StreamAudioFormat=& SET CustomFormat-m4a=& SET CustomFormat-mp3=& SET quality_libfdk=& SET CustomFormat-opus=& SET StreamVideoFormat=& SET CommentPreset=& SET SectionsAudio=& SET SectionsVideo=& SET DoSections=& SET Downloaded-Sections=& SET Downloaded-Stream=& SET OnlyNew=& SET Downloaded-Quick=& SET SubsPreset=& SET FormatTitle=& SET CustomFormat-ogg=& SET CropThumb=& SET VariousArtists=& SET quality_simple=& SET CustomFormatAudio=& SET CustomChapters=& SET ReplayGainPreset=& SET BestAudio=& SET aac-at-param-1=& SET aac-at-param-2=& SET aac-at-param-3=& SET aac-at-param-4=& SET aac-at-param-5=& SET CustomCodec=& SET ContinueHook=& SET ALBUM=& GOTO :start
+REM IF "%choice%"=="e" GOTO :getURL-re-enter
+REM go to main menu but keep URL
+IF "%choice%"=="e" SET Downloaded-Video=& SET Downloaded-Audio=& SET Downloaded-Manual=& SET Downloaded-Manual-Single=& SET Downloaded-Comments=& SET Downloaded-Subs=& SET AudioQuality=& SET DownloadList=& SET VideoResolution=& SET VideoFPS=& SET CustomFormatVideo=& SET StreamAudioFormat=& SET CustomFormat-m4a=& SET CustomFormat-mp3=& SET quality_libfdk=& SET CustomFormat-opus=& SET StreamVideoFormat=& SET CommentPreset=& SET SectionsAudio=& SET SectionsVideo=& SET DoSections=& SET Downloaded-Sections=& SET Downloaded-Stream=& SET OnlyNew=& SET Downloaded-Quick=& SET SubsPreset=& SET FormatTitle=& SET CustomFormat-ogg=& SET CropThumb=& SET VariousArtists=& SET quality_simple=& SET CustomFormatAudio=& SET CustomChapters=& SET ReplayGainPreset=& SET BestAudio=& SET aac-at-param-1=& SET aac-at-param-2=& SET aac-at-param-3=& SET aac-at-param-4=& SET aac-at-param-5=& SET CustomCodec=& SET ContinueHook=& SET ALBUM=& GOTO :start
 IF "%choice%"=="w" SET ContinueHook=1& GOTO :aria
 IF "%choice%"=="q" GOTO :exit
 ECHO %Red-s%╭%separator:~1,-1%╮%ColorOff%
@@ -1296,9 +1298,25 @@ GOTO :doYTDL-stream
 GOTO :select-preset-sections
 ) ELSE (IF "%Downloaded-Quick%"=="1" (
 GOTO :doYTDL-quick
+) ELSE (IF "!URL-Hook-Audio!"=="1" (
+SET !URL-Hook-Audio!=& GOTO :select-format-audio
+) ELSE (IF "!URL-Hook-Video!"=="1" (
+SET !URL-Hook-Video!=& GOTO :select-format-video
+) ELSE (IF "!URL-Hook-List!"=="1" (
+SET !URL-Hook-List!=& GOTO :select-download-list
+) ELSE (IF "!URL-Hook-Manual!"=="1" (
+SET !URL-Hook-Manual!=& GOTO :select-format-manual
+) ELSE (IF "!URL-Hook-Subs!"=="1" (
+SET !URL-Hook-Subs!=& GOTO :select-preset-subs
+) ELSE (IF "!URL-Hook-Comments!"=="1" (
+SET !URL-Hook-Comments!=& GOTO :select-preset-comments
+) ELSE (IF "!URL-Hook-Sections!"=="1" (
+SET !URL-Hook-Sections!=& GOTO :select-preset-sections
+) ELSE (IF "!URL-Hook-Stream!"=="1" (
+SET !URL-Hook-Stream!=& GOTO :select-format-stream
 ) ELSE (
 GOTO :start
-)))))))))
+)))))))))))))))))
 
 :exit
 cls
@@ -1673,7 +1691,7 @@ GOTO :select-quality-vbr-at-audio
 cls
 ECHO %Blue-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Blue-s%•%ColorOff%  AUDIO PRESETS!padding:~1,-19!%Blue-s%│%ColorOff%
-ECHO %Blue-s%┝%separator:~1,-1%╯%ColorOff%
+ECHO %Blue-s%┝%separator:~1,-1%┥%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Cyan-s%1%ColorOff%  Audio Single / Channel				%Cyan-s%12%ColorOff%  Audio Single + Only New
 ECHO %Blue-s%│%ColorOff%  %Cyan-s%2%ColorOff%  Audio Single + Crop Thumbnail			%Cyan-s%13%ColorOff%  Audio Single + Crop Thumbnail + Only New
 ECHO %Blue-s%│%ColorOff%  %Cyan-s%3%ColorOff%  Audio Single + Title as "Artist - Title"		%Cyan-s%14%ColorOff%  Audio Single + Title as "Artist - Title" + Only New
@@ -1688,7 +1706,7 @@ ECHO %Blue-s%│%ColorOff%  %Cyan-s%9%ColorOff%  Audio Playlist + Crop Thumbnail
 ECHO %Blue-s%┝%separator:~1,-1%┥%ColorOff%
 ECHO %Blue-s%│%ColorOff% %Cyan-s%10%ColorOff%  Audio Playlist / Various Artists			%Cyan-s%21%ColorOff%  Audio Playlist / Various Artists + Only New
 ECHO %Blue-s%│%ColorOff% %Cyan-s%11%ColorOff%  Audio Playlist / Various Artists + Crop Thumbnail	%Cyan-s%22%ColorOff%  Audio Playlist / Various Artists + Crop + Only New
-ECHO %Blue-s%┝%separator:~1,-1%╮%ColorOff%
+ECHO %Blue-s%┝%separator:~1,-1%┥%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Yellow-s%w%ColorOff%  Go Back!padding:~1,-13!%Blue-s%│%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Yellow-s%r%ColorOff%  Main Menu!padding:~1,-15!%Blue-s%│%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Red-s%q%ColorOff%  Exit!padding:~1,-10!%Blue-s%│%ColorOff%
@@ -3130,7 +3148,8 @@ ECHO %Green-s%╰%separator:~1,-1%╯%ColorOff%
 timeout /t 2 >nul
 SET  OutTemplate= --output "%TARGET_FOLDER%\%%(playlist_uploader,uploader)s\%%(%Cyan-s%%playlist_date%%ColorOff%,release_year,release_date>%%Y,upload_date>%%Y)s - %%(album,playlist_title,playlist|)s\%%(meta_track_number,playlist_index,playlist_autonumber)02d. %%(title)s.%%(ext)s" 
 ) ELSE (
-SET  OutTemplate= --output "%TARGET_FOLDER%\%%(playlist_uploader,uploader)s\%%(album,playlist_title,playlist|)s\%%(meta_track_number,playlist_index,playlist_autonumber)02d. %%(title)s.%%(ext)s" 
+REM %%(playlist_uploader,uploader)s\ <- this just brings yt chaos from various Topic playlists and other to your folder 
+SET  OutTemplate= --output "%TARGET_FOLDER%\%%(playlist_title,playlist,album|)s\%%(playlist_index,playlist_autonumber,meta_track_number)02d. %%(title)s.%%(ext)s" 
 ))
 IF NOT DEFINED stop_on_error (
 SET      Options=%DEBUG% --ignore-errors --ignore-config --js-runtimes "%JS_RUNTIME_NAME%:%JS_RUNTIME_PATH%" --extractor-args "youtube:%EXTRACTOR_ARGS%"
@@ -3696,7 +3715,8 @@ ECHO %Green-s%╰%separator:~1,-1%╯%ColorOff%
 timeout /t 2 >nul
 SET  OutTemplate= --output "%TARGET_FOLDER%\%%(playlist_uploader,uploader)s\%%(%Cyan-s%%playlist_date%%ColorOff%,release_year,release_date>%%Y,upload_date>%%Y)s - %%(album,playlist_title,playlist|)s\%%(meta_track_number,playlist_index,playlist_autonumber)02d. %%(title)s.%%(ext)s" 
 ) ELSE (
-SET  OutTemplate= --output "%TARGET_FOLDER%\%%(playlist_uploader,uploader)s\%%(album,playlist_title,playlist|)s\%%(meta_track_number,playlist_index,playlist_autonumber)02d. %%(title)s.%%(ext)s" 
+REM %%(playlist_uploader,uploader)s\
+SET  OutTemplate= --output "%TARGET_FOLDER%\%%(playlist_title,playlist,album|)s\%%(playlist_index,playlist_autonumber,meta_track_number)02d. %%(title)s.%%(ext)s" 
 ))
 IF NOT DEFINED stop_on_error (
 SET      Options=%DEBUG% --ignore-errors --ignore-config --js-runtimes "%JS_RUNTIME_NAME%:%JS_RUNTIME_PATH%" --extractor-args "youtube:%EXTRACTOR_ARGS%"
@@ -3925,9 +3945,9 @@ SET   FileSystem= --cache-dir "%YTDLP_CACHE_DIR%" --ffmpeg-location "%FFMPEG_PAT
 SET    Thumbnail=
 SET    Verbosity= --color always --console-title --progress --progress-template ["download] [Progress":" %%(progress._percent_str)s, Speed: %%(progress._speed_str)s, Elapsed: %%(progress._elapsed_str)s, Time Remaining: %%(progress._eta_str|0)s/s"]
 IF NOT DEFINED reasonable-timeouts (
-SET  WorkArounds=
+SET  WorkArounds= --sleep-subtitles 60
 ) ELSE (
-SET  WorkArounds= %SLEEP%
+SET  WorkArounds= %SLEEP% -sleep-subtitles 60
 )
 SET       Format=
 IF "%SubsPreset%"=="1" (
@@ -4175,7 +4195,7 @@ SET Downloaded-Video=& SET Downloaded-Audio=& SET Downloaded-Manual=& SET Downlo
 
 :: SECTIONS
 :sections-preset-1
-SET  OutTemplate= --output "%TARGET_FOLDER%\%%(uploader)s\%%(title)s_%%(duration)s.%%(ext)s"
+SET  OutTemplate= --output "%TARGET_FOLDER%\%%(uploader)s\%%(title)s_%%(section_start)s-%%(section_end)s.%%(ext)s"
 IF NOT DEFINED stop_on_error (
 SET      Options=%DEBUG% --ignore-errors --ignore-config --js-runtimes "%JS_RUNTIME_NAME%:%JS_RUNTIME_PATH%" --extractor-args "youtube:%EXTRACTOR_ARGS%"
 ) ELSE (IF "%stop_on_error%"=="9" (
@@ -4259,25 +4279,25 @@ SET  WorkArounds= %SLEEP% --use-postprocessor "ReturnYoutubeDislike:when=pre_pro
 SET  WorkArounds= %SLEEP%
 ))
 IF "%CustomFormat-opus%"=="1" (
-SET       Format= --extract-audio --format "774/251/250/249"
+SET       Format= --extract-audio --format "774/251/250/249" --downloader-args "ffmpeg:-v quiet -vn -y -threads 0 -c:a libopus -b:a %AUDIO_BITRATE%k"
 ) ELSE (IF "%CustomFormat-m4a%"=="1" (
-SET       Format= --extract-audio --format "141/38/22/140/37/59/34/35/59/78/18"
+SET       Format= --extract-audio --format "141/38/22/140/37/59/34/35/59/78/18" "ffmpeg:-v quiet -vn -y -threads 0 -c:a %ENCODER% -b:a %AUDIO_BITRATE%k"
 ) ELSE (IF "%CustomFormat-ogg%"=="1" (
-SET       Format= --extract-audio --format "46/45/44/43"
+SET       Format= --extract-audio --format "46/45/44/43" --downloader-args "ffmpeg:-v quiet -vn -y -threads 0 -c:a libvorbis -b:a %AUDIO_BITRATE%k"
 ) ELSE (IF "%CustomFormat-mp3%"=="1" (
-SET       Format= --extract-audio --format "ba[acodec^=mp3]/b"
+SET       Format= --extract-audio --format "ba[acodec^=mp3]/b" --downloader-args "ffmpeg:-v quiet -vn -y -threads 0 -c:a libmp3lame -b:a %AUDIO_BITRATE%k"
 ) ELSE (IF "%CustomFormat-m4a%"=="2" (
-SET       Format= --extract-audio --format "773/338/258/328/774/327/256/141/251/22/140/38/37/35/34/59/78/18/250/46/45/44/43" --audio-format %AudioFormat% --postprocessor-args "ExtractAudio:-v quiet -vn -y -threads 0 -ac 2 -ar %AUDIO_SAMPLING_RATE% -c:a libfdk_aac -vbr %AudioQuality% -cutoff %CUTOFF% -afterburner 1"
+SET       Format= --extract-audio --format "773/338/258/328/774/327/256/141/251/22/140/38/37/35/34/59/78/18/250/46/45/44/43" --downloader-args "ffmpeg:-v quiet -vn -y -threads 0 -ac 2 -ar %AUDIO_SAMPLING_RATE% -c:a libfdk_aac -vbr %AudioQuality% -cutoff %CUTOFF% -afterburner 1"
 ) ELSE (IF "%CustomFormat-opus%"=="2" (
-SET       Format= --extract-audio --format "338/774/251/250/249"
+SET       Format= --extract-audio --format "338/774/251/250/249" --downloader-args "ffmpeg:-v quiet -vn -y -threads 0 -c:a libopus -b:a %AUDIO_BITRATE%k"
 ) ELSE (IF "%CustomFormat-m4a%"=="3" (
-SET       Format= --extract-audio --format "258/380/327/256/141/38/22/140/37/59/34/35/59/78/18"
+SET       Format= --extract-audio --format "258/380/327/256/141/38/22/140/37/59/34/35/59/78/18" --downloader-args "ffmpeg:-v quiet -vn -y -threads 0 -c:a %ENCODER% -b:a %AUDIO_BITRATE%k"
 ) ELSE (IF "%CustomFormat-m4a%"=="4" (
 SET       Format= --extract-audio --format "773/338/258/328/774/327/256/141/251/22/140/38/37/35/34/59/78/18/250/46/45/44/43" --audio-format %AudioFormat% --postprocessor-args "ExtractAudio:-v quiet -vn -y -threads 0 -c:a libfdk_aac -vbr %AudioQuality% -cutoff %CUTOFF% -afterburner 1 -af \"%FIREQUALIZER%,%LOUDNORM%,%ARESAMPLE%,%ANLMDN_DENOISING%%COMPAND%,%SILENCEREMOVE%\""
 ) ELSE (IF "%CustomFormat-opus%"=="3" (
-SET       Format= --extract-audio --format "338/774/251/250/249" --audio-format %AudioFormat% --use-postprocessor FFmpegCopyStream --postprocessor-args "copystream:-v quiet -vn -y -threads 0 -b:a %AUDIO_BITRATE%k -c:a libopus -af \"%PAN%,%FIREQUALIZER%,%LOUDNORM%,%ANLMDN_DENOISING%%COMPAND%,%SILENCEREMOVE%\""
+SET       Format= --extract-audio --format "338/774/251/250/249" --downloader-args "ffmpeg:-v quiet -vn -y -threads 0 -c:a libopus -b:a %AUDIO_BITRATE%k -af \"%PAN%,%FIREQUALIZER%,%LOUDNORM%,%ANLMDN_DENOISING%%COMPAND%,%SILENCEREMOVE%\""
 ) ELSE (IF "%CustomFormat-opus%"=="4" (
-SET       Format= --extract-audio --format "bestaudio[acodec^=opus]/bestaudio[container*=dash]/bestaudio" --audio-format %AudioFormat%
+SET       Format= --extract-audio --format "bestaudio[acodec^=opus]/bestaudio[container*=dash]/bestaudio" --downloader-args "ffmpeg:-v quiet -vn -y -threads 0 -c:a libopus -b:a %AUDIO_BITRATE%k"
 ) ELSE (IF "%CustomFormat-m4a%"=="5" (
 SET       Format= --format "258/380/327/256/141/38/22/140/37/59/34/35/59/78/18" --audio-format %AudioFormat% --postprocessor-args "ExtractAudio:-v quiet -vn -y -threads 0 -c:a libfdk_aac -vbr %AudioQuality% -cutoff %CUTOFF% -afterburner 1 -af \"%PAN%,%FIREQUALIZER%,%LOUDNORM%,%ARESAMPLE%,%ANLMDN_DENOISING%%COMPAND%,%SILENCEREMOVE%\""
 ) ELSE (IF "%CustomFormat-m4a%"=="6" (
@@ -4297,13 +4317,13 @@ SET       Format= -S "+size,+br,+res,+fps" --merge-output-format mkv
 ) ELSE (IF "%CustomFormatVideo%"=="3" (
 SET       Format= -S "+size,+br" --merge-output-format mkv
 ) ELSE (IF "%CustomCodec%"=="avc" (
-SET       Format= --format "(bestvideo*[vcodec~='^((he|a)vc|h26[45])'][height<=%VideoResolution%][fps<=%VideoFPS%]/bestvideo[ext=mp4]) + (bestaudio[acodec=opus][format_note*=original]/bestaudio[acodec~='^(mp?4a|aac)'][format_note*=original]/bestaudio[container*=dash]) / (bestvideo*[height<=%VideoResolution%][fps<=%VideoFPS%]+ba/b)" --merge-output-format mp4 --postprocessor-args "Merger:-v quiet -y -threads 0 -vcodec copy -b:a %AUDIO_BITRATE%k -ar %AUDIO_SAMPLING_RATE% -acodec %ENCODER% -cutoff %CUTOFF%"
+SET       Format= --format "(bestvideo*[vcodec~='^((he|a)vc|h26[45])'][height<=%VideoResolution%][fps<=%VideoFPS%]/bestvideo[ext=mp4]) + (bestaudio[acodec=opus][format_note*=original]/bestaudio[acodec~='^(mp?4a|aac)'][format_note*=original]/bestaudio[container*=dash]) / (bestvideo*[height<=%VideoResolution%][fps<=%VideoFPS%]+ba/b)" --merge-output-format mp4 --postprocessor-args "Merger:-v quiet -y -threads 0 -vcodec copy -acodec %ENCODER% -b:a %AUDIO_BITRATE%k -ar %AUDIO_SAMPLING_RATE% -cutoff %CUTOFF%"
 ) ELSE (IF "%CustomCodec%"=="vp9" (
-SET       Format= --format "(bestvideo*[vcodec~='^(vp9.2|vp09|vp9)'][height<=%VideoResolution%][fps<=%VideoFPS%]/bestvideo*[height<=%VideoResolution%][fps<=%VideoFPS%]/bestvideo)+(bestaudio[acodec=opus][format_note*=original]/bestaudio[acodec~='^(mp?4a|aac)'][format_note*=original]/bestaudio[container*=dash])/(bestvideo*[height<=%VideoResolution%][fps<=%VideoFPS%]+ba/b)" --merge-output-format mkv --postprocessor-args "Merger:-v quiet -y -threads 0 -vcodec copy -b:a %AUDIO_BITRATE%k -ar %AUDIO_SAMPLING_RATE% -acodec %ENCODER% -cutoff %CUTOFF%"
+SET       Format= --format "(bestvideo*[vcodec~='^(vp9.2|vp09|vp9)'][height<=%VideoResolution%][fps<=%VideoFPS%]/bestvideo*[height<=%VideoResolution%][fps<=%VideoFPS%]/bestvideo)+(bestaudio[acodec=opus][format_note*=original]/bestaudio[acodec~='^(mp?4a|aac)'][format_note*=original]/bestaudio[container*=dash])/(bestvideo*[height<=%VideoResolution%][fps<=%VideoFPS%]+ba/b)" --merge-output-format mkv --postprocessor-args "Merger:-v quiet -y -threads 0 -vcodec copy -acodec %ENCODER%  -b:a %AUDIO_BITRATE%k -ar %AUDIO_SAMPLING_RATE%-cutoff %CUTOFF%"
 ) ELSE (IF "%CustomCodec%"=="av1" (
-SET       Format= --format "(bestvideo*[vcodec^=av01][height<=%VideoResolution%][fps<=%VideoFPS%]/bestvideo[ext=mp4])+(bestaudio[acodec=opus][format_note*=original]/bestaudio[acodec~='^(mp?4a|aac)'][format_note*=original]/bestaudio[container*=dash]) / (bestvideo*[height<=%VideoResolution%][fps<=%VideoFPS%]+ba/b)" --merge-output-format mp4 --postprocessor-args "Merger:-v quiet -y -threads 0 -vcodec copy -b:a %AUDIO_BITRATE%k -ar %AUDIO_SAMPLING_RATE% -acodec %ENCODER% -cutoff %CUTOFF%"
+SET       Format= --format "(bestvideo*[vcodec^=av01][height<=%VideoResolution%][fps<=%VideoFPS%]/bestvideo[ext=mp4])+(bestaudio[acodec=opus][format_note*=original]/bestaudio[acodec~='^(mp?4a|aac)'][format_note*=original]/bestaudio[container*=dash]) / (bestvideo*[height<=%VideoResolution%][fps<=%VideoFPS%]+ba/b)" --merge-output-format mp4 --postprocessor-args "Merger:-v quiet -y -threads 0 -vcodec copy -acodec %ENCODER% -b:a %AUDIO_BITRATE%k -ar %AUDIO_SAMPLING_RATE% -cutoff %CUTOFF%"
 ) ELSE (IF "%SectionsVideo%"=="1" (
-SET       Format= --format "(bestvideo*[height=?%VideoResolution%][fps=?%VideoFPS%])+(bestaudio[acodec=opus][format_note*=original]/bestaudio[acodec~='^(mp?4a|aac)'][format_note*=original]/bestaudio[container*=dash])/(bestvideo*[height<=?%VideoResolution%][fps<=?%VideoFPS%]+ba/b)" --merge-output-format mkv --postprocessor-args "Merger:-v quiet -y -threads 0 -vcodec copy -b:a %AUDIO_BITRATE%k -ar %AUDIO_SAMPLING_RATE% -acodec %ENCODER% -cutoff %CUTOFF%"
+SET       Format= --format "(bestvideo*[height=?%VideoResolution%][fps=?%VideoFPS%])+(bestaudio[acodec=opus][format_note*=original]/bestaudio[acodec~='^(mp?4a|aac)'][format_note*=original]/bestaudio[container*=dash])/(bestvideo*[height<=?%VideoResolution%][fps<=?%VideoFPS%]+ba/b)" --merge-output-format mkv --postprocessor-args "Merger:-v quiet -y -threads 0 -vcodec copy -acodec %ENCODER% -b:a %AUDIO_BITRATE%k -ar %AUDIO_SAMPLING_RATE% -cutoff %CUTOFF%"
 )))))))))))))))))))))))
 SET     Subtitle=
 SET     Comments=
@@ -4321,7 +4341,7 @@ SET   PreProcess= --parse-metadata "%%(epoch>%%Y-%%m-%%d)s:%%(meta_download_date
 IF "%SectionsVideo%"=="1" (
 SET  PostProcess= --embed-metadata --compat-options no-attach-info-json --force-keyframes-at-cuts
 ) ELSE (IF "%CustomFormat-opus%"=="1" (
-SET  PostProcess= --embed-metadata --compat-options no-attach-info-json --force-keyframes-at-cuts --audio-format %AudioFormat% --use-postprocessor FFmpegCopyStream --postprocessor-args "copystream:-v quiet -vn -y -threads 0 -b:a %AUDIO_BITRATE%k -c:a libopus"
+SET  PostProcess= --embed-metadata --compat-options no-attach-info-json --force-keyframes-at-cuts
 ) ELSE (IF "%CustomFormat-opus%"=="3" (
 SET  PostProcess= --embed-metadata --compat-options no-attach-info-json --force-keyframes-at-cuts
 ) ELSE (
