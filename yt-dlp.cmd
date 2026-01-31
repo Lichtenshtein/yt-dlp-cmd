@@ -318,7 +318,7 @@ IF EXIST "%temp_file2%" del /f /q "%temp_file2%" >nul 2>&1
 IF "%YAY%"=="1" (
 cls
 ECHO %Blue-s%╭%separator:~1,-1%╮%ColorOff%
-ECHO %Blue-s%│%ColorOff%  %Blue-s%•%ColorOff%  ENTER SOURCE URL ^(or enter "q" to quick-download URL from clipboard; "a" for quick-download audio^)!padding:~1,-104!%Blue-s%│%ColorOff%
+ECHO %Blue-s%│%ColorOff%  %Blue-s%•%ColorOff%  ENTER SOURCE URL ^(or enter "%Blue-s%q%ColorOff%" to quick-download URL from clipboard; "%Blue-s%a%ColorOff%" for quick-download audio^)!padding:~1,-104!%Blue-s%│%ColorOff%
 ECHO %Blue-s%╰%separator:~1,-1%╯%ColorOff%
 SET /P URL=%BS%   %Cyan-n%› %ColorOff% 
 IF NOT DEFINED URL EXIT /B %APP_ERR%
@@ -514,8 +514,8 @@ cls
 ECHO %Blue-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Blue-s%•%ColorOff%  Auto Title Formating ^(i.e. interpret Title as "Artist - Title" if found " - " in it^)!padding:~1,-90!%Blue-s%│%ColorOff%
 ECHO %Blue-s%┝%separator:~1,-1%╯%ColorOff%
-ECHO %Blue-s%│%ColorOff%  %Cyan-s%1%ColorOff%  Enable %Blue-s%^(default^)%ColorOff%
-ECHO %Blue-s%│%ColorOff%  %Cyan-s%2%ColorOff%  %Yellow-n%Disable%ColorOff%
+ECHO %Blue-s%│%ColorOff%  %Cyan-s%1%ColorOff%  Enable
+ECHO %Blue-s%│%ColorOff%  %Cyan-s%2%ColorOff%  %Yellow-n%Disable%ColorOff% %Blue-s%^(default^)%ColorOff%
 ECHO %Blue-s%┝%separator:~1,-1%╮%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Yellow-s%w%ColorOff%  Go Back!padding:~1,-13!%Blue-s%│%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Red-s%q%ColorOff%  Exit!padding:~1,-10!%Blue-s%│%ColorOff%
@@ -740,6 +740,7 @@ timeout /t 2 >nul
 GOTO :smart-splitter
 
 :select-download-list
+SET URL-Hook-List=
 cls
 ECHO %Blue-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Blue-s%•%ColorOff%  DOWNLOAD FROM TEXT LIST!padding:~1,-29!%Blue-s%│%ColorOff%
@@ -1170,12 +1171,12 @@ cls
 SET ContinueHook=
 IF DEFINED extended_menu (
 ECHO %Blue-s%╭%separator:~1,-1%╮%ColorOff%
-ECHO %Blue-s%│%ColorOff%  %Blue-s%•%ColorOff%  EXTENDED MENU ^(not working for now^)!padding:~1,-46!%Blue-s%│%ColorOff%
+ECHO %Blue-s%│%ColorOff%  %Blue-s%•%ColorOff%  EXTENDED MENU ^(not working for now^)!padding:~1,-41!%Blue-s%│%ColorOff%
 ECHO %Blue-s%┝%separator:~1,-1%┥%ColorOff%
 ) ELSE (
 ECHO %Blue-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Blue-s%•%ColorOff%  CONTINUE MENU!padding:~1,-19!%Blue-s%│%ColorOff%
-ECHO %Blue-s%┝%separator:~1,-1%╯%ColorOff%
+ECHO %Blue-s%┝%separator:~1,-1%┥%ColorOff%
 )
 :: meant for download another link with same params
 ECHO %Blue-s%│%ColorOff%  %Cyan-s%1%ColorOff%  New URL ^(same parameters^)
@@ -1298,22 +1299,22 @@ GOTO :doYTDL-stream
 GOTO :select-preset-sections
 ) ELSE (IF "%Downloaded-Quick%"=="1" (
 GOTO :doYTDL-quick
-) ELSE (IF "!URL-Hook-Audio!"=="1" (
-SET !URL-Hook-Audio!=& GOTO :select-format-audio
-) ELSE (IF "!URL-Hook-Video!"=="1" (
-SET !URL-Hook-Video!=& GOTO :select-format-video
-) ELSE (IF "!URL-Hook-List!"=="1" (
-SET !URL-Hook-List!=& GOTO :select-download-list
-) ELSE (IF "!URL-Hook-Manual!"=="1" (
-SET !URL-Hook-Manual!=& GOTO :select-format-manual
-) ELSE (IF "!URL-Hook-Subs!"=="1" (
-SET !URL-Hook-Subs!=& GOTO :select-preset-subs
-) ELSE (IF "!URL-Hook-Comments!"=="1" (
-SET !URL-Hook-Comments!=& GOTO :select-preset-comments
-) ELSE (IF "!URL-Hook-Sections!"=="1" (
-SET !URL-Hook-Sections!=& GOTO :select-preset-sections
-) ELSE (IF "!URL-Hook-Stream!"=="1" (
-SET !URL-Hook-Stream!=& GOTO :select-format-stream
+) ELSE (IF "%URL-Hook-Audio%"=="1" (
+GOTO :select-format-audio
+) ELSE (IF "%URL-Hook-Video%"=="1" (
+GOTO :select-format-video
+) ELSE (IF "%URL-Hook-List%"=="1" (
+GOTO :select-download-list
+) ELSE (IF "%URL-Hook-Manual%"=="1" (
+GOTO :select-format-manual
+) ELSE (IF "%URL-Hook-Subs%"=="1" (
+GOTO :select-preset-subs
+) ELSE (IF "%URL-Hook-Comments%"=="1" (
+GOTO :select-preset-comments
+) ELSE (IF "%URL-Hook-Sections%"=="1" (
+GOTO :select-preset-sections
+) ELSE (IF "%URL-Hook-Stream%"=="1" (
+GOTO :select-format-stream
 ) ELSE (
 GOTO :start
 )))))))))))))))))
@@ -1333,8 +1334,9 @@ EXIT /B 0
 ::
 
 :select-format-manual
-cls
+SET URL-Hook-Manual=
 SET Downloaded-Manual=& SET Downloaded-Manual-Single=
+cls
 ECHO %Yellow-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Yellow-s%│%ColorOff%  %Yellow-s%•%ColorOff%  FETCHING URL...!padding:~1,-21!%Yellow-s%│%ColorOff%
 ECHO %Yellow-s%╰%separator:~1,-1%╯%ColorOff%
@@ -1430,6 +1432,7 @@ GOTO :continue
 :select-format-audio
 SET CustomFormat-m4a=& SET CustomFormat-mp3=& SET CustomFormat-opus=& SET CustomFormat-ogg=& SET CustomFormatAudio=& SET BestAudio=
 SET Downloaded-Audio=
+SET URL-Hook-Audio=
 cls
 ECHO %Blue-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Blue-s%•%ColorOff%  AUDIO FORMAT!padding:~1,-18!%Blue-s%│%ColorOff%
@@ -1751,6 +1754,7 @@ GOTO :select-preset-audio
 
 :select-format-video
 SET CustomFormatVideo=& SET Downloaded-Video=& SET VideoResolution=& SET VideoFPS=
+SET URL-Hook-Video=
 cls
 ECHO %Blue-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Blue-s%•%ColorOff%  VIDEO QUALITY!padding:~1,-19!%Blue-s%│%ColorOff%
@@ -1879,6 +1883,7 @@ GOTO :select-preset-video
 :select-preset-subs
 cls
 SET Downloaded-Subs=
+SET URL-Hook-Subs=
 ECHO %Blue-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Blue-s%•%ColorOff%  SUBTITLES!padding:~1,-15!%Blue-s%│%ColorOff%
 ECHO %Blue-s%┝%separator:~1,-1%╯%ColorOff%
@@ -1910,6 +1915,7 @@ GOTO :select-preset-subs
 ::
 
 :select-preset-comments
+SET URL-Hook-Comments=
 cls
 SET Downloaded-Comments=
 ECHO %Blue-s%╭%separator:~1,-1%╮%ColorOff%
@@ -1960,6 +1966,7 @@ GOTO :select-preset-comments
 ::
 
 :select-format-stream
+SET URL-Hook-Stream=
 cls
 SET Downloaded-Stream=
 ECHO %Blue-s%╭%separator:~1,-1%╮%ColorOff%
@@ -2095,6 +2102,7 @@ GOTO :select-codec-video-stream
 
 :select-preset-sections
 SET Downloaded-Sections=& SET SectionsAudio=& SET SectionsVideo=& SET CropThumb=& SET CustomChapters=
+SET URL-Hook-Sections=
 cls
 ECHO %Blue-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Blue-s%│%ColorOff%  %Blue-s%•%ColorOff%  SECTION DOWNLOAD PRESETS!padding:~1,-30!%Blue-s%│%ColorOff%
@@ -2924,12 +2932,14 @@ ECHO %Yellow-s%│%ColorOff%  %Yellow-s%•%ColorOff%  Defining title formating.
 ECHO %Yellow-s%╰%separator:~1,-1%╯%ColorOff%
 "%YTDLP_PATH%" --no-warnings --quiet --simulate --skip-download --flat-playlist --print "%%(title)s" "%URL%" | findstr /C:" - " /C:" — " >NUL 2>&1
 if %errorlevel% equ 0 SET FormatTitle=1)))
+REM %%(uploader)s\
+REM %%(playlist_uploader,uploader)s\
 IF NOT DEFINED DownloadList (IF "%FormatTitle%"=="1" (
-SET  OutTemplate= --output "%TARGET_FOLDER%\%%(uploader)s\%%(artist,artists.0,creator,uploader)s - %%(title)s.%%(ext)s"
+SET  OutTemplate= --output "%TARGET_FOLDER%\%%(artist,artists.0,creator,uploader)s - %%(title)s.%%(ext)s"
 ) ELSE (
-SET  OutTemplate= --output "%TARGET_FOLDER%\%%(uploader)s\%%(title)s.%%(ext)s"
+SET  OutTemplate= --output "%TARGET_FOLDER%\%%(title)s.%%(ext)s"
 )) ELSE (
-SET  OutTemplate= --output "%TARGET_FOLDER%\%%(playlist_uploader,uploader)s\%%(playlist_title,playlist,meta_album|)s\%%(meta_track,autonumber+1)02d. %%(artist,artists.0,creator,uploader)s - %%(title)s.%%(ext)s"
+SET  OutTemplate= --output "%TARGET_FOLDER%\%%(playlist_title,playlist,meta_album|)s\%%(meta_track,autonumber+1)02d. %%(artist,artists.0,creator,uploader)s - %%(title)s.%%(ext)s"
 )
 IF NOT DEFINED stop_on_error (
 SET      Options=%DEBUG% --ignore-errors --ignore-config --js-runtimes "%JS_RUNTIME_NAME%:%JS_RUNTIME_PATH%" --extractor-args "youtube:%EXTRACTOR_ARGS%"
@@ -3345,7 +3355,7 @@ SET Downloaded-Video=& SET Downloaded-Audio=1& SET Downloaded-Manual=& SET Downl
 
 :: AUDIO QUICK PRESET
 :doYTDL-preset-quick
-SET  OutTemplate= --output "%TARGET_FOLDER%\%%(uploader)s\%%(artist,artists.0,creator,uploader)s - %%(title)s.%%(ext)s"
+SET  OutTemplate= --output "%TARGET_FOLDER%\%%(artist,artists.0,creator,uploader)s - %%(title)s.%%(ext)s"
 SET      Options=%DEBUG% --ignore-errors --ignore-config --js-runtimes "%JS_RUNTIME_NAME%:%JS_RUNTIME_PATH%" --extractor-args "youtube:%EXTRACTOR_ARGS%"
 SET      Network= --add-headers "User-Agent:%USER_AGENT%"
 SET  GeoRestrict= --xff "%GEO-BYPASS%"
@@ -4361,7 +4371,7 @@ SET doYTDL=
 cls
 ECHO %Magenta-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Magenta-s%│%ColorOff%  %Magenta-s%•%ColorOff%  Check Parameters:!padding:~1,-23!%Magenta-s%│%ColorOff%
-ECHO %Magenta-s%┝%separator:~1,-1%┥%ColorOff%
+ECHO %Magenta-s%╰%separator:~1,-1%╯%ColorOff%
 IF DEFINED OutTemplate (
 ECHO    %Green-n%›%ColorOff%  Output:%OutTemplate%
 )
@@ -4430,7 +4440,7 @@ ECHO    %Green-n%›%ColorOff%  URLs List: "%Underline%%URL%%ColorOff%"
 ) ELSE (
 ECHO    %Green-n%›%ColorOff%  URL: "%Underline%%URL%%ColorOff%"
 )
-ECHO %Magenta-s%╰%separator:~1,-1%╯%ColorOff%
+ECHO %Magenta-s%%separator:~1,-1%%ColorOff%
 :: test solution to reset without script quiting
 SET /P doYTDL=%BS%   %Cyan-n%› %ColorOff% '%Blue-s%Enter%ColorOff%' to download, '%Blue-s%r%ColorOff%' to return to Main Menu: 
 IF NOT DEFINED doYTDL GOTO :doYTDL
@@ -4516,7 +4526,7 @@ SET Downloaded-Video=& SET Downloaded-Audio=& SET Downloaded-Manual=& SET Downlo
 cls
 ECHO %Magenta-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Magenta-s%│%ColorOff%  %Magenta-s%•%ColorOff%  Check Parameters:!padding:~1,-23!%Magenta-s%│%ColorOff%
-ECHO %Magenta-s%┝%separator:~1,-1%┥%ColorOff%
+ECHO %Magenta-s%╰%separator:~1,-1%╯%ColorOff%
 IF DEFINED OutTemplate (
 ECHO    %Green-n%›%ColorOff%  Output:%OutTemplate%
 )
@@ -4616,7 +4626,7 @@ GOTO :continue
 ) ELSE (
 ECHO %Magenta-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Magenta-s%│%ColorOff%  %Magenta-s%•%ColorOff%  Check Parameters:!padding:~1,-23!%Magenta-s%│%ColorOff%
-ECHO %Magenta-s%┝%separator:~1,-1%┥%ColorOff%
+ECHO %Magenta-s%╰%separator:~1,-1%╯%ColorOff%
 IF DEFINED OutTemplate (
 ECHO    %Green-n%›%ColorOff%  Output:%OutTemplate%
 )
@@ -4723,7 +4733,7 @@ EXIT /B 0
 ) ELSE (
 ECHO %Magenta-s%╭%separator:~1,-1%╮%ColorOff%
 ECHO %Magenta-s%│%ColorOff%  %Magenta-s%•%ColorOff%  Check Parameters:!padding:~1,-23!%Magenta-s%│%ColorOff%
-ECHO %Magenta-s%┝%separator:~1,-1%┥%ColorOff%
+ECHO %Magenta-s%╰%separator:~1,-1%╯%ColorOff%
 IF DEFINED OutTemplate (
 ECHO    %Green-n%›%ColorOff%  Output:%OutTemplate%
 )
